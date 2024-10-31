@@ -1,0 +1,96 @@
+Summary of important user-visible changes for ocl-1.2.2:
+-------------------------------------------------------------------
+
+ ** Minor adaptions to support recent and upcoming Octave versions.
+
+
+Summary of important user-visible changes for ocl-1.2.1:
+-------------------------------------------------------------------
+
+ ** Minor adaptions to support Octave versions up to 7.3 (the most 
+    recently released Octave version).
+
+
+Summary of important user-visible changes for ocl-1.2.0:
+-------------------------------------------------------------------
+
+ ** Added support for logically indexed assignment with a scalar value,
+    i.e., expressions like "A(B < 0) = 0;" now work with OCL matrix
+    variables A and B.  The right-hand side may only be a single scalar.
+    All other cases of logical indexing, in particular any
+    right-hand-side expression with logical indexing using OCL matrices
+    remains forbidden, since this would fundamentally break the
+    asynchronous workflow of OpenCL computation (see discussion on
+    project's homepage).
+
+ ** Added or extended several OCL matrix functions.  Degree-based
+    trigonometric functions (sind, cosd, etc.) and the "fix" function
+    now work with OCL matrices.  The "min" and "max" functions now
+    also work with a scalar as first argument and an OCL matrix as
+    second argument.
+
+ ** Added dummy save / load functionality to OCL variables.  This is
+    added solely to avoid crashing when saving / loading workspaces
+    which also contain OCL variables.  However, OCL data is never
+    saved, since data availability generally depends on (OpenCL)
+    context (see discussion on project's homepage).
+
+
+Summary of important user-visible changes for ocl-1.1.1:
+-------------------------------------------------------------------
+
+ ** Minor adaptions to support older Intel GPU OpenCL drivers.
+
+
+Summary of important user-visible changes for ocl-1.1.0:
+-------------------------------------------------------------------
+
+ ** Added support for complex numbers of single and double precision
+    as OCL matrix data, including operators and math functions.
+    Few restrictions apply (see help text of oclArray function).
+    Compatibility requires octave >= 4.2.0 for OCL from now on.
+
+ ** Added an OpenCL memory manager.  It increases performance with
+    octave functions and scripts which operate on OCL matrices
+    (i.e., longer sequences of standard operations on OCL matrices).
+
+
+Summary of important user-visible changes for ocl-1.0.0:
+-------------------------------------------------------------------
+
+ ** Enabled support for Octave 4.4 and 5.1 (the most recently released
+    Octave version).  Major internal changes.  A minor but visible
+    side effect is the renaming of the OCL matrices' class names from
+    "ocl double" to "ocl_double" etc.
+
+ ** OCL matrix operators now also work with scalars of type double
+    (i.e., with the octave default type; formerly, only scalars of the
+    OCL matrix element type were allowed, e.g., int8).  Restrictions
+    exist for large-magnitude scalar values of type (u)int64.
+
+
+Summary of important user-visible changes for ocl-0.9.2:
+-------------------------------------------------------------------
+
+ ** Added new functions for transferring matrix data between octave
+    and the OpenCL device, and for larger compatibility with Matlab:
+    oclArray (), ocl_to_octave (), gpuArray (), gather ()
+
+ ** Rearranged multiple function help texts, making 'oclArray' the
+    new online help focus and switching node
+
+ ** Updated README file; added "Getting Started" and "Troubleshooting"
+    sections
+
+ ** Changed the default name for the OpenCL library for GNU/Linux
+    and BSD systems (to "libOpenCL.so.1")
+
+ ** For the automatic selection of an OpenCL device, corrected for
+    prioritizing fp64-capable OpenCL devices (important bugfix)
+
+
+Summary of important user-visible changes for ocl-0.9.1:
+-------------------------------------------------------------------
+
+ ** Universalized loading of OpenCL library, making OCL generally
+    independent of operating system; improved error reporting

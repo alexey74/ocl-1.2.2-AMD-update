@@ -1,0 +1,53 @@
+##
+##  Copyright (C) 2019-2023 Matthias W. Klein
+##
+##  This file is part of OCL - a GNU Octave package providing OpenCL support.
+##
+##  OCL is free software: you can redistribute it and/or modify
+##  it under the terms of the GNU General Public License as published by
+##  the Free Software Foundation, either version 3 of the License, or
+##  (at your option) any later version.
+##
+##  OCL is distributed in the hope that it will be useful,
+##  but WITHOUT ANY WARRANTY; without even the implied warranty of
+##  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License
+##  along with OCL.  If not, see <http://www.gnu.org/licenses/>.
+##
+ocl >> OCL - OpenCL support for GNU Octave
+OCL matrix transfer functions for OpenCL storage
+  oclArray
+  gpuArray
+  ocl_to_octave
+  gather
+OCL matrix constructors for specific types
+  ocl_double
+  ocl_single
+  ocl_int8
+  ocl_int16
+  ocl_int32
+  ocl_int64
+  ocl_uint8
+  ocl_uint16
+  ocl_uint32
+  ocl_uint64
+OCL matrix generators
+  ocl_ones
+  ocl_zeros
+  ocl_eye
+  ocl_linspace
+  ocl_logspace
+  ocl_cat
+OCL program constructors for OpenCL programs
+  ocl_program
+  ocl_program_file
+OpenCL context management functions
+  ocl_context
+OpenCL library management functions
+  ocl_lib
+OpenCL constants functions
+  ocl_constant
+OCL test and documentation functions
+  ocl_tests

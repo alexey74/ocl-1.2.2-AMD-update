@@ -1,0 +1,449 @@
+OCL Package for GNU Octave
+--------------------------
+
+Copyright (C) 2019-2023 Matthias W. Klein
+
+This file is part of OCL - a GNU Octave package providing OpenCL support.
+
+OCL is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+OCL is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with OCL.  If not, see <http://www.gnu.org/licenses/>.
+------------------------------------------------------------
+
+
+Contents:
+---------
+1. Introduction
+2. Getting Started
+3. OCL Package Overview - User's View
+4. Why OpenCL ?
+5. Troubleshooting
+6. OCL Package Overview - Developer's View
+
+
+1. Introduction
+---------------
+
+GNU Octave is described as "a high-level interpreted language,
+primarily intended for numerical computations, mostly compatible
+with Matlab".  The OCL Package for GNU Octave is intended for
+speeding up a subset of these numerical computations which are
+based on large vectors or n-dimensional arrays of numbers
+and mostly (but not limited to) identical element-wise operations.
+
+The Package uses OpenCL as its backend for parallel computations,
+providing the user the general ability to choose the hardware
+(the "OpenCL device"; e.g., a graphics card or a multi-CPU system)
+which is used for the computations just before running the code.
+It implements a functionality similar to Matlab's "gpuArray" core
+concept, but avoids restrictions on hardware type and vendor.
+
+The Package provides broad functionality for general numerical
+computations and a wide extendibility.  However, it does not,
+by itself, provide parallelization of higher numerical methods
+(like BLAS or LAPACK).
+
+The name "OCL" is an acronym, standing either for "Octave openCL",
+or just for "OpenCL".
+
+This README file refers to version 1.1.0 of the OCL Package.
+
+
+2. Getting Started
+------------------
+
+You can install the OCL Package by obtaining the zipped tar-file
+from the sourceforge webpage and using octave's "pkg" command:
+
+    pkg install ocl-<version>.tar.gz
+
+In each Octave session using OCL, you need to load the package:
+
+    pkg load ocl
+
+The basic working principle of OCL is simple:  setup your data in
+the OpenCL context, perform your calculations (e.g., using Octave
+syntax), and retrieve the data back to Octave workspace for evaluation.
+A schematic code example is given here:
+
+    mat = magic (4);
+
+    # transfer mat to OpenCL memory
+    ocl_mat = oclArray (mat);
+
+    # perform computations with ocl_mat on OpenCL device
+    ocl_mat2 = ocl_mat + 1;
+    ocl_mat3 = ocl_mat2 .^ 3;
+    ocl_mat3(:,3) = 5;
+    ocl_mat2 = mean (floor (ocl_mat3 / 2), 2);
+
+    # transfer ocl_mat2 to octave memory
+    mat2 = ocl_to_octave (ocl_mat2);
+
+    disp (mat2)
+
+The "oclArray" and "ocl_to_octave" functions are the key actors here.
+
+For an overview over all OCL functionality, see the next section,
+as well as the online help texts of the functions described there.
+
+For troubleshooting, see section 5.
+
+
+3. OCL Package Overview - User's View
+-------------------------------------
+
+The OCL Package provides its functionality on several levels:
+
+  Level 1: new octave array types, and standard operators on these
+  Level 2: a new octave type for user-written OpenCL programs
+  Level 3: (for oct-file users: new C++ classes for arrays and programs)
+  Level 4: functions managing the OpenCL context and device selection
+  Level 5: functions managing the dynamic loading of the OpenCL library
+
+These are now described in more detail:
+
+* Level 1: new octave array types, and operators on these
+
+This is the easiest start for users who are new to the package.
+Users who are familiar with octave's matrix type or matrix types
+(storing n-dimensional array data of a specific element type like
+"double" or "int64") can choose to start their computations by
+using the "oclArray" function:
+
+    ocl_matrix = oclArray (octave_matrix)
+
+Internally, "oclArray" calls one of the OCL matrix constructor functions:
+
+    ocl_double (octave_matrix)
+    ocl_single (octave_matrix)
+    ocl_int8   (octave_matrix)
+    ocl_int16  (octave_matrix)
+    ocl_int32  (octave_matrix)
+    ocl_int64  (octave_matrix)
+    ocl_uint8  (octave_matrix)
+    ocl_uint16 (octave_matrix)
+    ocl_uint32 (octave_matrix)
+    ocl_uint64 (octave_matrix)
+
+These copy arbitrary octave matrix data into the OpenCL device hardware.
+Alternatively, data can be assembled in the OpenCL device originally,
+with functions like ocl_ones, ocl_linspace etc., similar to the known
+octave functions.
+
+Many standard functions and operations known from octave's matrix
+syntax can then be applied equivalently to OCL matrices:
+element-wise operators like "+"/".*"/".^" etc., matrix multiplication,
+indexing with ranges (with some limitations), indexed assignment,
+many standard array functions like "sum", "any" etc., and element-
+wise math functions like "cos", "erf" and many more (see the ocl_tests.m
+file for details of the implemented functionality).
+
+This means that using existing octave user code may only need little
+changes to use OCL for the actual computation.
+
+Be sure to read the explanations from "help oclArray" for further
+important information before using these functions.
+
+* Level 2: a new octave type for user-written OpenCL programs
+
+Using OCL matrices with octave standard operations comes with
+repeated overhead.  Users wishing to speed up their computations
+more can write their own pieces of OpenCL C code and make them
+immediately accessible in octave by the OCL program constructor
+function:
+
+    ocl_program (opencl_source_string, [build_options_string])
+or
+    ocl_program_file (opencl_source_filename, [build_options_string])
+
+An OCL program variable can comprise several subprograms ("kernels";
+see the OpenCL specification).  For executing an OCL kernel taking
+arguments, both octave standard numeric types (with restrictions)
+and, most importantly, OCL matrices can be passed.  (The latter can
+be passed as "__global" variable pointers in OpenCL C.)
+
+For more information, be sure to consult the octave help on the
+"ocl_program" function (type "help ocl_program" in octave).
+
+* Level 3: (for oct-file users: new C++ classes for arrays and programs)
+
+Users using octave's external oct-interface (writing .oct-files in C++)
+can include the package's header files "ocl_array.h" and / or
+"ocl_program.h" and then, on the level of the liboctave library, use
+the classes "OclArray<T>" and "OclProgram" for similar functionality
+as on the octave interpreter level.
+
+* Level 4: functions managing the OpenCL context and device selection
+
+All higher OCL functionality and OCL objects automatically set up
+an OpenCL context when needed; so this process is largely invisible.
+However, whenever performance is essential or when problems with
+setting up the context occur, the user has access to this level.
+Manual inspection and, in particular, individual choosing of the
+intended OpenCL device are possible with the "ocl_context" function
+(see its octave help for details).
+
+* Level 5: functions managing the dynamic loading of the OpenCL library
+
+All higher OCL functionality and OCL objects automatically give
+rise to loading and linking to the OpenCL shared library, dynamically
+at runtime, when needed; so this process is largely invisible.
+However, when problems with loading the OpenCL library or a
+desired device driver occur, the user has access to this level.
+Manual inspection and configuration changes are possible with the
+"ocl_lib" function (see its octave help for details).
+
+
+4. Why OpenCL ?
+---------------
+
+OpenCL is an open standard, with no proprietary restrictions,
+and it is portable across many operating systems; these aspects
+make OpenCL fit well with octave's philosophy and its context as
+Free Open Source Software.  Hardware (especially graphics cards)
+which can be used with OpenCL is wide-spread in private computers
+and servers today; OpenCL drivers are wide-spread or largely
+available.  Moreover, an OpenCL driver offers an online compiler,
+which integrates very well into the (interactive) working strategy
+of octave.  Also, to my experience, OpenCL is not significantly
+slower than other drivers used with the same hardware.
+
+The OCL Package is generally supported on all operating systems
+supporting octave's oct-file interface, including Windows and Linux.
+Adding new OpenCL device drivers to the system after the OCL Package
+installation does not require the Package to be reinstalled.
+
+For help on installing OpenCL drivers and ICD loaders, consult the
+corresponding driver's vendor webpage or the vast web resources on
+the topic of OpenCL installation.
+
+
+5. Troubleshooting
+------------------
+
+While many OpenCL installations may work perfect (and the OCL
+Package just runs fine), sometimes, to my experience, correctly
+installing an OpenCL driver can be a hassle.  Giving details on
+OpenCL driver installation is out of this scope; abundant info can
+be found in the web.  However, for tracing back to the cause of an
+issue it is vital to have test methods at hand, and, in particular,
+to distinguish an OpenCL driver or OpenCL installation problem from an
+OCL Package problem.  This is one of the reasons why OCL comes with
+dynamic library loading, with the possibility of user interaction.
+
+Some OpenCL installations may remain incomplete or faulty.  Even
+the "clinfo" utility (https://github.com/Oblomov/clinfo) concludes:
+"Some faulty OpenCL platforms may cause clinfo to crash. There isn't
+much clinfo itself can do about it, ..."
+
+If issues with OpenCL persist, sometimes valuable insights or even
+relief can be obtained from the general act (if permitted on your
+system) of installing another OpenCL driver for a different hardware
+(e.g., one driver for your GPU, one for your CPU), and then retry
+testing.  A similarly general act is downloading and trying a
+different octave version (maybe of different 32/64 bit flavor etc.).
+
+In practice, the OCL Package offers at least some methods suitable
+to test and experiment with the OpenCL installation.  Try these in
+the following order:
+
+* try 'ocl_lib ("assure");'
+  - if it works (no error output), continue below with next bullet point
+  - if the OpenCL library file is not found in the standard library paths:
+    - rebuild your library path cache (if offered by operating system)
+    - search your OpenCL installation for the file (maybe symlink it)
+    - search all your possible standard library paths for any *OpenCL*
+      library file
+    - try any found file and path with the
+      'ocl_lib ("lib_path_filename", newpath, newfname)' function
+      (consult its syntax help first)
+    - if all fails, blame your (incomplete) OpenCL installation
+
+* try 'resources = ocl_context ("get_resources");'
+  - if it works (no errors), maybe inspect the 'resources' structure,
+    then continue below
+  - if this fails, blame your incompatible (32/64 bit) or faulty
+    OpenCL installation (not OCL)
+
+* try 'ocl_context ("assure");'
+  - if it works (no error output), then congrats, you can set up an
+    OpenCL context; continue below
+  - if this fails, blame your incompatible OpenCL installation (which
+    allows queries but refuses actual work)
+
+* try 'ocl_single (zeros (4));'
+  - if it works (no error output), then congrats, you can transfer
+    data to an OpenCL device; continue below
+  - if this fails, blame OCL (i.e., write an email, since this should
+    not happen)
+
+* try 'ocl_single (zeros (4)) + 1;'
+  - if it works (no error output), then congrats, you can compile the
+    built-in OpenCL C kernels; continue below
+  - if this fails, watch the error log and possibly blame OCL (i.e.,
+    write an email, since this should not happen)
+
+* try 'ocl_double (zeros (4)) + 1;'
+  - if it works (no error output), then congrats, you are set up to
+    (probably) work with all OCL features
+  - if this fails, blame your OpenCL hardware and/or software, which
+    does not support double precision
+
+* try 'ocl_tests ();'
+  - if it works (no error output), then congrats, you can work with
+    all OCL features
+  - if this fails, blame your OpenCL software, which does not support
+    the whole OpenCL 1.1 standard
+
+
+6. OCL Package Overview - Developer's View
+------------------------------------------
+
+The OCL Package core source code consists of several C++ files
+within a Makefile project, compiled by "mkoctfile" into a single
+oct-file for dynamic linking into octave (see Chapter "External
+Code Interface" in the octave documentation).  It also uses
+"user-defined data types", which are currently not documented
+in a central document but in the octave source files.
+
+The C++ source files, mainly in a dependence order, are:
+
+cl_platform_1_1.h
+  Mainly a copy of the original OpenCL 1.1 header file released by
+  The Khronos Group Inc. (used in accordance with their permissive
+  license).
+
+cl_1_1_dl.h
+  Largely a copy of the original OpenCL 1.1 header file released by
+  The Khronos Group Inc. (used in accordance with their permissive
+  license).  The main modification is the replacement of function
+  declarations by function pointer typedefs.
+
+ocl_lib.h
+  A header file to be included in cc-files which use OpenCL macros
+  or function calls or dynamic management of loading the OpenCL
+  library (the "library" level), or which use dynamic management of
+  OpenCL context creation (the "context" level), or which use
+  central OpenCL error checking.
+
+ocl_octave_versions.h
+  Contains C macro definitions to make the package code compatible
+  to different versions of octave source code.
+
+ocl_constant.cc
+  Contains translation functions involving OpenCL constants, e.g.,
+  translating an error code number into a readable specifier, and
+  helper functions for central OpenCL error handling.
+
+ocl_lib.cc
+  Dynamically loads the OpenCL shared library at runtime and
+  validates the OpenCL function pointers, both in an operating
+  system dependent way, and with configurable parameters.
+
+ocl_context.cc
+  Retrieves and sorts all information on all reachable OpenCL devices,
+  as a basis for selecting at runtime one device, possibly by user
+  request, for the creation of an OpenCL context and a command queue.
+
+ocl_context_obj.h + ocl_context_obj.cc
+  A simple C++ abstract class for an object which is either valid
+  (i.e., depends on a specific, currently active or automatically
+  created OpenCL context) or inoperable (e.g., its OpenCL context
+  is not active any more).
+
+ocl_program.h + ocl_program.cc
+  Contain the OclProgram C++ class for managing OpenCL C programs.
+  The OpenCL C code is compiled at object construction time.
+  If necessary, an OpenCL context is created beforehand, using
+  the latest user settings for device selection.
+
+ocl_array_prog.h + ocl_array_prog.cc
+  Contain all OpenCL C source code for the kernels used with the
+  OclArray class, written in a way independent of numeric data type,
+  and an enumeration of these standard kernels.
+
+ocl_memobj.h + ocl_memobj.cc
+  Contain a C++ class offering managed OpenCL memory objects.
+  Allocation and deallocation is performed selectively, possibly
+  retaining released memory for subsequent re-use, thus minimizing
+  OpenCL driver calls related to memory, in order to increase
+  performance with sequences of standard operations on OCL matrices.
+  Clearing all OCL variables forces all OpenCL memory to be released.
+
+ocl_array.h + ocl_array.cc
+  Contain the OclArray<T> C++ class template, and instantiations
+  for various numeric data types.  The class is similar to octave's
+  Array<T> class, but with OpenCL data storage.  Moreover, octave's
+  MArray<T> and derived classes' features are incorporated into
+  OclArray<T>.  This includes overloading of operators and standard
+  functions (like "sum", "max", or "cos"), mainly as members.
+  Allows shallow copies.  If necessary, an OpenCL context is
+  automatically created at construction time of the data containing
+  representative.  The instantiation of each data type holds its own
+  static OclProgram member for its standard kernels.
+  Typedefs exist for many Ocl*NDArray classes to be used similar to
+  liboctave's *NDArray classes.
+
+ocl_mat_method_template.m.in
+  A template text file used in conjunction with the Makefile target
+  "methods" which generates a multitude of m-files named "@ocl_*/*.m"
+  recognized as individual methods for each ocl matrix type/class.
+  (Only the generated files are included in the package tarball.)
+
+ocl_ov_matrix.h + ocl_ov_matrix.cc
+  Contain the template class "octave_base_ocl_matrix" of which
+  instantiations constitute the new "ocl * matrix" user types.
+  The template class is derived from the "octave_base_value" class
+  and is similar to octave's "octave_base_matrix" class but with its
+  descendant class "octave_*matrix" merged.  In addition, it also
+  incorporates many matrix methods, both as object members and as
+  static members.
+
+  Moreover, ocl_ov_matrix.cc also defines the ocl matrix constructor
+  C++ functions callable from the octave interpreter.  Additionally
+  defined C++ functions "__ocl_mat_*__" are part of the following
+  calling chain for ocl matrix methods:
+
+        octave interpreter symbol table entry for class method
+    --> (generated) m-file "@ocl_*/*.m" (e.g., "@ocl_int8/cummax.m")
+    --> C++ function "__ocl_mat_*__"
+    --> octave_base_ocl_matrix static member function
+    --> octave_base_ocl_matrix object member function
+    --> OclArray object member function
+
+ocl_ov_matrix_ops.cc + ocl_ov_matrix_ops.h
+  Contain the definitions and installation procedure for all operators
+  of all ocl matrix types.  They connect the standard operators
+  usable in the octave interpreter with the corresponding OclArray<T>
+  operators.
+
+ocl_ov_matrix_fcns.cc
+  Defines additional C++ functions, like "ocl_ones", related to
+  (constructing) ocl matrices, callable from the octave interpreter.
+
+ocl_ov_program.cc + ocl_ov_program.h
+  Contain the class "octave_ocl_program" backing the new octave type
+  "ocl program", and the corresponding OCL program constructor
+  C++ function callable from the octave interpreter.
+
+ocl_ov_types.h + ocl_ov_types.cc
+  Contain a simple central C++ function which provides that all
+  constructor functions described above, upon first call, install
+  all OCL types and their operators in octave's type system.
+
+ocl_tests.m
+  An m-file with specifically ordered OCL function tests, also
+  performing function tests looping over all OCL data types.
+
+Other m-files beyond the C++ core source code exist and are
+documented elsewhere.
